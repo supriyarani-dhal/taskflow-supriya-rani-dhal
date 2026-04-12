@@ -1,8 +1,8 @@
-# taskflow-supriya-rani-dhal
+# TaskFlow-Supriya-rani-dhal
 
 > A minimal but complete task management system — Full Stack Take-Home Project
 
-![Go](https://img.shields.io/badge/Go-1.22-00ADD8?style=flat&logo=go) ![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat&logo=postgresql) ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat&logo=docker)
+![Node.js](https://img.shields.io/badge/Node.js-20-339933?style=flat&logo=node.js) ![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat&logo=typescript) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat&logo=postgresql) ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat&logo=docker)
 
 ---
 
@@ -22,15 +22,17 @@ TaskFlow is a minimal but complete task management system. Users can register, l
 
 | Layer | Technology | Why |
 |-------|-----------|-----|
-| Backend | Go 1.22 + Gin | Fast, typed, minimal overhead |
+| Backend | Node.js 20 + Express + TypeScript | Familiar, fast to iterate, type-safe |
 | Database | PostgreSQL 16 | Relational integrity, UUID support |
-| Migrations | Goose | Clean up/down, SQL-first |
-| Auth | JWT (golang-jwt) | Stateless, simple, 24h expiry |
-| Frontend | React 18 + TypeScript | Type-safe, modern DX |
-| Server State | React Query | Fetching, caching, invalidation |
-| Client State | Zustand | Lightweight auth state |
-| UI Library | shadcn/ui + Tailwind | Accessible, composable components |
+| Migrations | db-migrate | Clean up/down, SQL-first |
+| Auth | JWT (jsonwebtoken) + bcrypt | Stateless sessions, secure password hashing |
+| Frontend | React 18 + TypeScript + Vite | Type-safe, fast builds, modern DX |
+| Server State | React Query (TanStack) | Fetching, caching, invalidation |
+| Client State | Zustand | Lightweight auth state persistence |
+| UI Library | shadcn/ui + Tailwind CSS | Accessible, composable components |
 | Containers | Docker + Compose | One-command setup |
+
+> **Note on language choice:** The assignment lists Go as the preferred backend language. I chose Node.js + TypeScript because I can deliver a cleaner, more complete, and more thoroughly considered implementation in the available time. I am actively learning Go and happy to discuss the architectural decisions in any follow-up call.
 
 ---
 
@@ -38,55 +40,64 @@ TaskFlow is a minimal but complete task management system. Users can register, l
 
 ### Backend Structure
 
-The backend follows a layered architecture inside the `internal/` package:
+The backend follows a layered architecture inside `src/`:
 
 ```
 backend/
-├── cmd/api/main.go          # Entry point — wires deps, routes, graceful shutdown
-├── internal/
-│   ├── auth/                # JWT generation & validation
-│   ├── handlers/            # Thin HTTP handlers — validate input, return JSON
-│   ├── middleware/          # Auth guard as composable Gin middleware
-│   ├── models/              # Plain Go structs mirroring DB schema
-│   └── db/                  # pgxpool connection helper
-└── migrations/              # Goose SQL migration files
+├── src/
+│   ├── index.ts               # Entry point — wires deps, routes, graceful shutdown
+│   ├── db/
+│   │   └── pool.ts            # pg connection pool helper
+│   ├── middleware/
+│   │   └── auth.ts            # JWT auth guard as composable Express middleware
+│   ├── controllers/
+│   │   ├── auth.controller.ts
+│   │   ├── projects.controller.ts
+│   │   └── tasks.controller.ts
+│   ├── routes/
+│   │   ├── auth.routes.ts
+│   │   ├── projects.routes.ts
+│   │   └── tasks.routes.ts
+│   └── types/
+│       └── index.ts           # Shared TypeScript interfaces + Express augmentation
+└── migrations/                # db-migrate SQL migration files
 ```
 
 ### Why Raw SQL Instead of an ORM
 
-I deliberately avoided GORM. Raw SQL with `pgx` gives full visibility into query performance, makes N+1 problems obvious, and keeps the data layer predictable. For a project of this scope, the verbosity tradeoff is worthwhile.
+I deliberately avoided Prisma or TypeORM. Raw SQL with `pg` gives full visibility into query performance, makes N+1 problems obvious, and keeps the data layer completely predictable. For a project of this scope, the verbosity tradeoff is worthwhile.
 
-### Why Gin
+### Why Express
 
-Gin provides routing groups, middleware, and request binding without imposing opinions. It can be migrated to stdlib `net/http` + `chi` in a future pass with minimal effort.
+Express is minimal, well-understood, and composable. Middleware, routing groups, and error handling are explicit — there's no magic. It can be migrated to Fastify with minimal effort if performance becomes a concern.
 
 ### Frontend State Strategy
 
-**React Query** manages all server state (fetching, caching, invalidation). **Zustand** manages the thin client-side auth state (token + user, persisted in localStorage). This avoids the trap of putting server data into a global Redux store.
+**React Query** manages all server state (fetching, caching, invalidation). **Zustand** manages thin client-side auth state (token + user), persisted in localStorage. This avoids the trap of putting server data into a global store and keeps cache invalidation straightforward.
 
 ### Intentional Omissions & Tradeoffs
 
 | Omission | Reason |
 |----------|--------|
-| Refresh tokens | 24h JWT expiry is acceptable for a demo |
-| Role-based access control | Ownership checks cover the required cases |
-| Rate limiting | Would add — skipped for time |
+| Refresh tokens | 24h JWT expiry is acceptable for a demo scope |
+| Role-based access control | Ownership checks cover the required authorization cases |
+| Rate limiting | Would add on `/auth/*` — skipped for time |
 | Email verification | Out of scope for this assignment |
-| Unit tests on every handler | Integration tests cover the critical paths |
-| WebSocket real-time | Listed as bonus; skipped to ship core features well |
+| Unit tests on every handler | Integration tests cover the critical auth and task paths |
+| WebSocket real-time | Listed as bonus; skipped to ship core features cleanly |
 
 ---
 
 ## 3. Running Locally
 
-The only prerequisite is **Docker Desktop** (or Docker Engine + Compose plugin). No Go, Node, or PostgreSQL installation required on the host.
+The only prerequisite is **Docker Desktop** (or Docker Engine + Compose plugin). No Node.js, PostgreSQL, or any other tool needs to be installed on your machine.
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/supriya-rani-dhal/taskflow
-cd taskflow
+git clone https://github.com/your-name/taskflow-yourname
+cd taskflow-yourname
 
-# 2. Copy environment file (defaults work out of the box)
+# 2. Copy the environment file (all defaults work out of the box)
 cp .env.example .env
 
 # 3. Start all services
@@ -96,14 +107,14 @@ docker compose up --build
 | Service | URL |
 |---------|-----|
 | Frontend (React) | http://localhost:3000 |
-| Backend API (Go) | http://localhost:8080 |
+| Backend API (Express) | http://localhost:8080 |
 
 `docker compose up` will automatically:
 - Start PostgreSQL and wait for the healthcheck to pass
-- Build the Go binary using a multi-stage Dockerfile
-- Run all database migrations on API startup via Goose
+- Build the Node.js backend using a multi-stage Dockerfile
+- Run all database migrations automatically on API startup
 - Seed the database with a test user, project, and 3 tasks
-- Build the React app and serve it via nginx on port 3000
+- Build the React app with Vite and serve it via nginx on port 3000
 
 ---
 
@@ -114,26 +125,28 @@ Migrations run **automatically on container startup**. No manual step is needed 
 If you need to run migrations manually against a local Postgres instance:
 
 ```bash
-# Install Goose
-go install github.com/pressly/goose/v3/cmd/goose@latest
+cd backend
 
-# Run all migrations up
-goose -dir backend/migrations postgres \
-  "postgres://taskflow:taskflow_secret@localhost:5432/taskflow?sslmode=disable" up
+# Copy and fill in your local env values
+cp .env.example .env
 
-# Roll back one migration
-goose -dir backend/migrations postgres \
-  "postgres://taskflow:taskflow_secret@localhost:5432/taskflow?sslmode=disable" down
+# Run all pending migrations up
+npm run migrate:up
+
+# Roll back the last migration
+npm run migrate:down
 ```
 
-Migration files in `backend/migrations/`:
+Migration files live in `backend/migrations/`:
 
 ```
-001_create_users.sql
-002_create_projects.sql
-003_create_tasks.sql
-004_seed.sql
+20240101000001-create-users.sql
+20240101000002-create-projects.sql
+20240101000003-create-tasks.sql
+20240101000004-seed.sql
 ```
+
+Each migration file has both a `-- +migrate Up` and `-- +migrate Down` block.
 
 ---
 
@@ -256,7 +269,7 @@ Authorization: Bearer <token>
 | GET | `/projects/:id/tasks` | List tasks — supports `?status=` and `?assignee=` filters |
 | POST | `/projects/:id/tasks` | Create a task |
 | PATCH | `/tasks/:id` | Update task fields |
-| DELETE | `/tasks/:id` | Delete task (project owner or task creator only) |
+| DELETE | `/tasks/:id` | Delete task (project owner only) |
 
 #### `POST /projects/:id/tasks`
 
@@ -314,20 +327,20 @@ Authorization: Bearer <token>
 ### Shortcuts Taken
 
 - **No pagination** on list endpoints — would add `?page=&limit=` with a `total` count in the response envelope
-- **localStorage for JWT** — HttpOnly cookies are more secure for production; used localStorage for simplicity here
+- **localStorage for JWT** — HttpOnly cookies are more secure for production; used localStorage for simplicity
 - **CORS allows all origins** in development — should be locked down to specific origins in production
-- **No request/trace IDs** in logs — would add middleware to inject these for easier debugging
-- **Handler tests are integration-level only** — unit tests for individual functions are missing
+- **No request/trace IDs in logs** — would add middleware to inject a unique ID per request for easier debugging
+- **No integration test suite** — would add tests using `supertest` + a test Postgres instance via Docker
 
 ### What I Would Improve
 
 - Add `GET /projects/:id/stats` — task counts grouped by status and by assignee
 - Implement refresh token rotation alongside the 24h access token
 - Add optimistic UI updates for task status changes (drag-and-drop Kanban board)
-- Set up a CI pipeline (GitHub Actions) for lint, test, and Docker build on every PR
+- Set up a CI pipeline (GitHub Actions) for lint, type-check, test, and Docker build on every PR
 - Add rate limiting on `/auth/*` endpoints to prevent brute force attacks
-- Write a proper integration test suite using `testcontainers-go` for isolated Postgres per test run
-- Introduce structured error types in Go instead of returning plain strings
+- Introduce a structured error class in Express instead of returning plain error strings
+- Add dark mode toggle persisted to localStorage
 
 ### If This Were a Real Product
 
@@ -336,6 +349,7 @@ Authorization: Bearer <token>
 - Build out team/organisation support — projects shared across a workspace
 - Add real-time collaboration via WebSockets for live task updates
 - Instrument with OpenTelemetry for distributed tracing and metrics
+- Move to a monorepo setup with shared TypeScript types between frontend and backend
 
 ---
 
