@@ -1,243 +1,230 @@
-# TaskFlow-Supriya-rani-dhal
-
-> A minimal but complete task management system — Full Stack Take-Home Project
-
-![Node.js](https://img.shields.io/badge/Node.js-20-339933?style=flat&logo=node.js) ![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat&logo=typescript) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat&logo=postgresql) ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat&logo=docker)
-
----
+# TaskFlow-supriya-rani-dhal
 
 ## 1. Overview
 
-TaskFlow is a minimal but complete task management system. Users can register, log in, create projects, add tasks within those projects, and assign tasks to themselves or other users.
+TaskFlow is a minimal but complete task management system. Users can register,
+log in, create projects, add tasks to those projects, and manage them through
+a Kanban-style board.
 
-### What It Does
+**What it does:**
+- Register and log in with JWT-based authentication
+- Create and manage projects
+- Add tasks with status (todo / in_progress / done), priority (low / medium / high), due dates, and assignees
+- Filter tasks by status on the project board
+- Optimistic UI — task status changes reflect instantly without waiting for the server
 
-- **Authentication** — Secure register/login with JWT-based sessions (24h expiry)
-- **Projects** — Create, update, delete projects; scoped to projects you own or are assigned in
-- **Tasks** — Full lifecycle management with status, priority, assignee, and due date
-- **Filtering** — Filter tasks by `status` or `assignee` within a project
-- **Authorization** — Ownership checks on all mutations (403 vs 401 are never conflated)
+**Tech Stack:**
+| Layer | Technology |
+|---|---|
+| Backend | Node.js + Express + TypeScript |
+| Database | PostgreSQL |
+| Migrations | db-migrate |
+| Auth | JWT (24h) + bcrypt (cost 12) |
+| Frontend | React + TypeScript + Vite |
+| Styling | Tailwind CSS |
+| Server state | React Query |
+| Client state | Zustand |
+| Reverse proxy | Nginx |
+| Infra | Docker + Docker Compose |
 
-### Tech Stack
-
-| Layer | Technology | Why |
-|-------|-----------|-----|
-| Backend | Node.js 20 + Express + TypeScript | Familiar, fast to iterate, type-safe |
-| Database | PostgreSQL 16 | Relational integrity, UUID support |
-| Migrations | db-migrate | Clean up/down, SQL-first |
-| Auth | JWT (jsonwebtoken) + bcrypt | Stateless sessions, secure password hashing |
-| Frontend | React 18 + TypeScript + Vite | Type-safe, fast builds, modern DX |
-| Server State | React Query (TanStack) | Fetching, caching, invalidation |
-| Client State | Zustand | Lightweight auth state persistence |
-| UI Library | shadcn/ui + Tailwind CSS | Accessible, composable components |
-| Containers | Docker + Compose | One-command setup |
-
-> **Note on language choice:** The assignment lists Go as the preferred backend language. I chose Node.js + TypeScript because I can deliver a cleaner, more complete, and more thoroughly considered implementation in the available time. I am actively learning Go and happy to discuss the architectural decisions in any follow-up call.
+> **Note on Go:** The assignment suggested Go for the backend. I chose Node.js +
+> TypeScript as I'm significantly more proficient in it and wanted to deliver a
+> polished, fully working submission within the 72-hour window rather than a
+> partial Go implementation. I'm actively learning Go.
 
 ---
 
 ## 2. Architecture Decisions
 
-### Backend Structure
+### Why Express + TypeScript over Go?
+Covered above — correctness and completeness within the time constraint took
+priority over language preference.
 
-The backend follows a layered architecture inside `src/`:
+### Why React Query for server state?
+React Query handles caching, background refetching, loading states, and error
+states automatically. The alternative (manual `useEffect` + `useState`) produces
+fragile, verbose code. React Query also makes optimistic updates straightforward,
+which was a rubric requirement.
 
-```
-backend/
-├── src/
-│   ├── index.ts               # Entry point — wires deps, routes, graceful shutdown
-│   ├── db/
-│   │   └── pool.ts            # pg connection pool helper
-│   ├── middleware/
-│   │   └── auth.ts            # JWT auth guard as composable Express middleware
-│   ├── controllers/
-│   │   ├── auth.controller.ts
-│   │   ├── projects.controller.ts
-│   │   └── tasks.controller.ts
-│   ├── routes/
-│   │   ├── auth.routes.ts
-│   │   ├── projects.routes.ts
-│   │   └── tasks.routes.ts
-│   └── types/
-│       └── index.ts           # Shared TypeScript interfaces + Express augmentation
-└── migrations/                # db-migrate SQL migration files
-```
+### Why Zustand for auth state?
+Zustand is lightweight and has no boilerplate compared to Redux. Auth state is
+simple (user + token), so a single small store is the right tool. It persists
+to `localStorage` so auth survives page refreshes without any extra setup.
 
-### Why Raw SQL Instead of an ORM
+### Why Nginx as a reverse proxy?
+Rather than exposing two ports (3000 for frontend, 8080 for backend), Nginx
+serves the React app on port 3000 and forwards `/auth`, `/projects`, `/tasks`
+requests to the backend container internally. This means the browser only talks
+to one origin — no CORS issues in production.
 
-I deliberately avoided Prisma or TypeORM. Raw SQL with `pg` gives full visibility into query performance, makes N+1 problems obvious, and keeps the data layer completely predictable. For a project of this scope, the verbosity tradeoff is worthwhile.
+### Why db-migrate with raw SQL migrations?
+The assignment explicitly said "not auto-migrate or ORM magic." Raw SQL migration
+files give full control over the schema and are easy for reviewers to read and
+verify. Both up and down migrations are included for every file.
 
-### Why Express
+### Tradeoffs made
+- **No pagination** — list endpoints return all records. This would be the first
+  thing to add in a real product.
+- **No role system** — authorization is owner-based only. A real product would
+  have team members with roles.
+- **Assignee is a free UUID field** — the UI doesn't have a user picker yet.
+  Assignees can be set via the API but the frontend doesn't expose it fully.
+- **No refresh tokens** — JWT expires in 24h and the user is logged out. A
+  production system would use refresh tokens.
 
-Express is minimal, well-understood, and composable. Middleware, routing groups, and error handling are explicit — there's no magic. It can be migrated to Fastify with minimal effort if performance becomes a concern.
-
-### Frontend State Strategy
-
-**React Query** manages all server state (fetching, caching, invalidation). **Zustand** manages thin client-side auth state (token + user), persisted in localStorage. This avoids the trap of putting server data into a global store and keeps cache invalidation straightforward.
-
-### Intentional Omissions & Tradeoffs
-
-| Omission | Reason |
-|----------|--------|
-| Refresh tokens | 24h JWT expiry is acceptable for a demo scope |
-| Role-based access control | Ownership checks cover the required authorization cases |
-| Rate limiting | Would add on `/auth/*` — skipped for time |
-| Email verification | Out of scope for this assignment |
-| Unit tests on every handler | Integration tests cover the critical auth and task paths |
-| WebSocket real-time | Listed as bonus; skipped to ship core features cleanly |
+### Intentionally left out
+- WebSocket / SSE real-time updates — would require significant extra infra
+- Email verification on register — out of scope for this assignment
+- Rate limiting — would add in production
 
 ---
 
 ## 3. Running Locally
 
-The only prerequisite is **Docker Desktop** (or Docker Engine + Compose plugin). No Node.js, PostgreSQL, or any other tool needs to be installed on your machine.
+> Assumes Docker and Docker Compose are installed. Nothing else is required.
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/your-name/taskflow-yourname
-cd taskflow-yourname
-
-# 2. Copy the environment file (all defaults work out of the box)
+git clone https://github.com/supriyarani-dhal/taskflow-supriya-rani-dhal.git
+cd taskflow-supriya-rani-dhal
 cp .env.example .env
-
-# 3. Start all services
 docker compose up --build
 ```
 
-| Service | URL |
-|---------|-----|
-| Frontend (React) | http://localhost:3000 |
-| Backend API (Express) | http://localhost:8080 |
+- Frontend: **http://localhost:3000**
+- API: **http://localhost:8080**
 
-`docker compose up` will automatically:
-- Start PostgreSQL and wait for the healthcheck to pass
-- Build the Node.js backend using a multi-stage Dockerfile
-- Run all database migrations automatically on API startup
-- Seed the database with a test user, project, and 3 tasks
-- Build the React app with Vite and serve it via nginx on port 3000
+The first run will:
+1. Pull the PostgreSQL image
+2. Build the backend and frontend Docker images
+3. Run all database migrations automatically
+4. Seed the database with test data
 
 ---
 
 ## 4. Running Migrations
 
-Migrations run **automatically on container startup**. No manual step is needed under normal circumstances.
+Migrations run **automatically** when the backend container starts via
+`entrypoint.sh`. No manual steps are needed.
 
-If you need to run migrations manually against a local Postgres instance:
+To run manually (outside Docker):
 
 ```bash
 cd backend
-
-# Copy and fill in your local env values
-cp .env.example .env
-
-# Run all pending migrations up
-npm run migrate:up
-
-# Roll back the last migration
-npm run migrate:down
+cp ../.env.example .env   # fill in DB credentials pointing to a local PG instance
+npm install
+npm run migrate:up        # apply all migrations
+npm run migrate:down      # roll back one step
 ```
-
-Migration files live in `backend/migrations/`:
-
-```
-20240101000001-create-users.sql
-20240101000002-create-projects.sql
-20240101000003-create-tasks.sql
-20240101000004-seed.sql
-```
-
-Each migration file has both a `-- +migrate Up` and `-- +migrate Down` block.
 
 ---
 
 ## 5. Test Credentials
 
-A seed user is created automatically on first startup. Use these to log in immediately without registering:
+A seed user is created automatically on first run:
 
 ```
 Email:    test@example.com
 Password: password123
 ```
 
-The seed also creates:
-- **1 project**: "Demo Project"
-- **3 tasks** with different statuses: `done`, `in_progress`, and `todo`
+This user owns the "Demo Project" which contains 3 tasks with different statuses.
 
 ---
 
 ## 6. API Reference
 
-**Base URL:** `http://localhost:8080`
+Base URL: `http://localhost:8080`
 
-All endpoints except `/auth/*` require the header:
+All protected endpoints require:
 ```
 Authorization: Bearer <token>
 ```
 
 ---
 
-### Authentication
+### Auth
 
-#### `POST /auth/register`
-
+#### POST `/auth/register`
 ```json
 // Request
 {
   "name": "Jane Doe",
   "email": "jane@example.com",
-  "password": "securepassword123"
+  "password": "password123"
 }
 
 // Response 201
 {
-  "token": "<jwt_access_token>",
-  "user": { "id": "uuid", "name": "Jane Doe", "email": "jane@example.com" }
+  "token": "<jwt>",
+  "user": {
+    "id": "uuid",
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "created_at": "2026-04-01T10:00:00Z"
+  }
+}
+
+// Response 400 (validation error)
+{
+  "error": "validation failed",
+  "fields": { "email": "already exists" }
 }
 ```
 
-#### `POST /auth/login`
-
+#### POST `/auth/login`
 ```json
 // Request
-{ "email": "jane@example.com", "password": "securepassword123" }
+{ "email": "jane@example.com", "password": "password123" }
 
 // Response 200
 {
-  "token": "<jwt_access_token>",
+  "token": "<jwt>",
   "user": { "id": "uuid", "name": "Jane Doe", "email": "jane@example.com" }
 }
+
+// Response 401
+{ "error": "invalid credentials" }
 ```
 
 ---
 
 ### Projects
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/projects` | List projects the current user owns or has tasks in |
-| POST | `/projects` | Create a project (owner = current user) |
-| GET | `/projects/:id` | Get project details + its tasks |
-| PATCH | `/projects/:id` | Update name/description (owner only) |
-| DELETE | `/projects/:id` | Delete project and all its tasks (owner only) |
+#### GET `/projects` 🔒
+```json
+// Response 200
+{
+  "projects": [
+    {
+      "id": "uuid",
+      "name": "Website Redesign",
+      "description": "Q2 project",
+      "owner_id": "uuid",
+      "created_at": "2026-04-01T10:00:00Z"
+    }
+  ]
+}
+```
 
-#### `POST /projects`
-
+#### POST `/projects` 🔒
 ```json
 // Request
-{ "name": "Website Redesign", "description": "Q2 project" }
+{ "name": "New Project", "description": "Optional" }
 
 // Response 201
 {
   "id": "uuid",
-  "name": "Website Redesign",
-  "description": "Q2 project",
+  "name": "New Project",
+  "description": "Optional",
   "owner_id": "uuid",
-  "created_at": "2026-04-12T10:00:00Z"
+  "created_at": "2026-04-09T10:00:00Z"
 }
+
+// Response 400
+{ "error": "validation failed", "fields": { "name": "is required" } }
 ```
 
-#### `GET /projects/:id`
-
+#### GET `/projects/:id` 🔒
 ```json
 // Response 200
 {
@@ -245,66 +232,108 @@ Authorization: Bearer <token>
   "name": "Website Redesign",
   "description": "Q2 project",
   "owner_id": "uuid",
+  "created_at": "2026-04-01T10:00:00Z",
   "tasks": [
     {
       "id": "uuid",
       "title": "Design homepage",
+      "description": "Mobile-first",
       "status": "in_progress",
       "priority": "high",
-      "assignee_id": "uuid",
-      "due_date": "2026-05-01",
-      "created_at": "...",
-      "updated_at": "..."
+      "project_id": "uuid",
+      "assignee_id": null,
+      "due_date": "2026-04-15",
+      "created_at": "2026-04-01T10:00:00Z",
+      "updated_at": "2026-04-01T10:00:00Z"
     }
   ]
 }
+
+// Response 404
+{ "error": "not found" }
+```
+
+#### PATCH `/projects/:id` 🔒
+```json
+// Request (all fields optional)
+{ "name": "Updated Name", "description": "Updated description" }
+
+// Response 200 — returns updated project object
+// Response 403
+{ "error": "forbidden" }
+```
+
+#### DELETE `/projects/:id` 🔒
+```
+// Response 204 No Content
+// Response 403 — if not the owner
 ```
 
 ---
 
 ### Tasks
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/projects/:id/tasks` | List tasks — supports `?status=` and `?assignee=` filters |
-| POST | `/projects/:id/tasks` | Create a task |
-| PATCH | `/tasks/:id` | Update task fields |
-| DELETE | `/tasks/:id` | Delete task (project owner only) |
+#### GET `/projects/:id/tasks?status=todo&assignee=uuid` 🔒
+```json
+// Response 200
+{
+  "tasks": [
+    {
+      "id": "uuid",
+      "title": "Design homepage",
+      "status": "todo",
+      "priority": "high",
+      "project_id": "uuid",
+      "assignee_id": null,
+      "due_date": null,
+      "created_at": "2026-04-01T10:00:00Z",
+      "updated_at": "2026-04-01T10:00:00Z"
+    }
+  ]
+}
+```
 
-#### `POST /projects/:id/tasks`
-
+#### POST `/projects/:id/tasks` 🔒
 ```json
 // Request
 {
   "title": "Design homepage",
-  "description": "Create wireframes and mockups",
+  "description": "Mobile-first design",
   "priority": "high",
   "assignee_id": "uuid",
-  "due_date": "2026-05-01"
+  "due_date": "2026-04-15"
 }
 
 // Response 201 — returns created task object
+// Response 400
+{ "error": "validation failed", "fields": { "title": "is required" } }
 ```
 
-#### `PATCH /tasks/:id`
-
+#### PATCH `/tasks/:id` 🔒
 ```json
 // Request (all fields optional)
 {
   "title": "Updated title",
-  "description": "Updated description",
   "status": "done",
   "priority": "low",
   "assignee_id": "uuid",
-  "due_date": "2026-05-15"
+  "due_date": "2026-04-20"
 }
 
 // Response 200 — returns updated task object
+// Response 404
+{ "error": "not found" }
+```
+
+#### DELETE `/tasks/:id` 🔒
+```
+// Response 204 No Content
+// Response 403 — if not the project owner
 ```
 
 ---
 
-### Error Responses
+### Error responses (all endpoints)
 
 ```json
 // 400 Validation error
@@ -324,33 +353,23 @@ Authorization: Bearer <token>
 
 ## 7. What I'd Do With More Time
 
-### Shortcuts Taken
+### Shortcuts I took
+- **Assignee UI is incomplete** — the task modal doesn't let you pick a user
+  from a list. The API supports it, but the frontend has no user search.
+- **No input sanitization beyond basic validation** — a production app would
+  sanitize all inputs more rigorously.
+- **Error boundaries missing in React** — unhandled render errors would crash
+  the whole page instead of showing a graceful error message.
+- **No tests** — I skipped tests to stay within the time limit. This is the
+  biggest shortcut.
 
-- **No pagination** on list endpoints — would add `?page=&limit=` with a `total` count in the response envelope
-- **localStorage for JWT** — HttpOnly cookies are more secure for production; used localStorage for simplicity
-- **CORS allows all origins** in development — should be locked down to specific origins in production
-- **No request/trace IDs in logs** — would add middleware to inject a unique ID per request for easier debugging
-- **No integration test suite** — would add tests using `supertest` + a test Postgres instance via Docker
-
-### What I Would Improve
-
-- Add `GET /projects/:id/stats` — task counts grouped by status and by assignee
-- Implement refresh token rotation alongside the 24h access token
-- Add optimistic UI updates for task status changes (drag-and-drop Kanban board)
-- Set up a CI pipeline (GitHub Actions) for lint, type-check, test, and Docker build on every PR
-- Add rate limiting on `/auth/*` endpoints to prevent brute force attacks
-- Introduce a structured error class in Express instead of returning plain error strings
-- Add dark mode toggle persisted to localStorage
-
-### If This Were a Real Product
-
-- Replace JWT-only auth with OAuth2 (Google/GitHub) for easier onboarding
-- Add email notifications for task assignments and approaching due dates
-- Build out team/organisation support — projects shared across a workspace
-- Add real-time collaboration via WebSockets for live task updates
-- Instrument with OpenTelemetry for distributed tracing and metrics
-- Move to a monorepo setup with shared TypeScript types between frontend and backend
-
----
-
-*Built as part of a Full Stack Engineering take-home assignment.*
+### What I'd add
+- **Integration tests** for auth and task endpoints (Jest + Supertest)
+- **Pagination** on `/projects` and `/tasks` endpoints
+- **Drag-and-drop** to move tasks between Kanban columns (react-beautiful-dnd)
+- **Real-time updates** via WebSocket so multiple users see changes live
+- **Dark mode** toggle persisted to localStorage
+- **Refresh tokens** so users aren't logged out after 24 hours
+- **User search / assignee picker** in the task modal
+- **Project stats endpoint** — task counts by status and by assignee
+- **Rate limiting** on auth endpoints to prevent brute force
