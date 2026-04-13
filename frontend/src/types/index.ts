@@ -20,6 +20,7 @@ export interface Task {
   priority: "low" | "medium" | "high";
   project_id: string;
   assignee_id?: string;
+  assigned_user_name?: string; // For convenience when displaying task with assignee info
   due_date?: string;
   created_at: Date;
   updated_at: Date;

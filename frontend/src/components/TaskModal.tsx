@@ -1,21 +1,24 @@
 import { useState, useEffect } from "react";
 import type { Task } from "../types";
+import type { User } from "../types";
 
 interface Props {
   task?: Task | null;
   projectId: string;
+  users: User[] | null;
   onClose: () => void;
   onSave: (data: Partial<Task>) => void;
   loading?: boolean;
 }
 
-export default function TaskModal({ task, onClose, onSave, loading }: Props) {
+export default function TaskModal({ task, users, onClose, onSave, loading }: Props) {
   const [form, setForm] = useState({
     title: "",
     description: "",
     status: "todo" as Task["status"],
     priority: "medium" as Task["priority"],
     due_date: "",
+    assignee_id: "",
   });
 
   useEffect(() => {
@@ -26,6 +29,7 @@ export default function TaskModal({ task, onClose, onSave, loading }: Props) {
         status: task.status,
         priority: task.priority,
         due_date: task.due_date || "",
+        assignee_id: task.assignee_id ? String(task.assignee_id) : "",
       });
     }
   }, [task]);
@@ -80,16 +84,32 @@ export default function TaskModal({ task, onClose, onSave, loading }: Props) {
                 <option value="high">High</option>
               </select>
             </div>
-          </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Due Date</label>
-            <input
-              type="date"
-              value={form.due_date}
-              onChange={(e) => setForm({ ...form, due_date: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Due Date</label>
+              <input
+                type="date"
+                value={form.due_date}
+                onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Assign To</label>
+              <select
+                value={form.assignee_id}
+                onChange={(e) => setForm({ ...form, assignee_id: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">Select User</option>
+                {users?.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getProjectAPI } from "../api/projects";
+import { getProjectAPI, getUsersAPI } from "../api/projects";
 import { createTaskAPI, updateTaskAPI, deleteTaskAPI } from "../api/tasks";
 import type { Task } from "../types";
 import Navbar from "../components/Navbar";
@@ -31,6 +31,11 @@ export default function ProjectDetail() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["project", id],
     queryFn: () => getProjectAPI(id!).then((r) => r.data),
+  });
+
+  const { data: userData } = useQuery({
+    queryKey: ["users"],
+    queryFn: () => getUsersAPI(),
   });
 
   const createMutation = useMutation({
@@ -172,6 +177,12 @@ export default function ProjectDetail() {
                         <p className="text-xs text-gray-400 mt-1 line-clamp-2">{task.description}</p>
                       )}
 
+                      {task.assigned_user_name && (
+                        <span className="inline-block mt-2 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                          👤 {task.assigned_user_name}
+                        </span>
+                      )}
+
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PRIORITY_COLORS[task.priority]}`}>
                           {task.priority}
@@ -209,6 +220,7 @@ export default function ProjectDetail() {
         <TaskModal
           task={editingTask ? { ...editingTask, created_at: new Date(editingTask.created_at), updated_at: new Date(editingTask.updated_at) } : null}
           projectId={id!}
+          users = {userData?.data || []}
           onClose={() => { setShowModal(false); setEditingTask(null); }}
           onSave={(formData) => {
             if (editingTask) {

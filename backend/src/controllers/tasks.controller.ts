@@ -18,7 +18,7 @@ export const listTasks = async (req: Request, res: Response): Promise<void> => {
 
 export const createTask = async (req: Request, res: Response): Promise<void> => {
   const { id: projectId } = req.params;
-  const { title, description, priority, assignee_id, due_date } = req.body;
+  const { title, description, priority, status, assignee_id, due_date } = req.body;
 
   if (!title) {
     res.status(400).json({ error: "validation failed", fields: { title: "is required" } });
@@ -27,8 +27,8 @@ export const createTask = async (req: Request, res: Response): Promise<void> => 
 
   const result = await pool.query(
     `INSERT INTO tasks (title, description, status, priority, project_id, assignee_id, due_date)
-     VALUES ($1, $2, 'todo', $3, $4, $5, $6) RETURNING *`,
-    [title, description || null, priority || "medium", projectId, assignee_id || null, due_date || null]
+     VALUES ($1, $2, COALESCE($3, 'todo'), $4, $5, $6, $7) RETURNING *`,
+    [title, description || null, status || "todo", priority || "medium", projectId, assignee_id || null, due_date || null]
   );
   res.status(201).json(result.rows[0]);
 };

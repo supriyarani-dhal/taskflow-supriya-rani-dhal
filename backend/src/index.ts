@@ -6,6 +6,8 @@ import projectRoutes from "./routes/projects.routes";
 import taskRoutes from "./routes/tasks.routes";
 import { authMiddleware } from "./middleware/auth";
 import pool from "./db/pool";
+import { listUsers } from "./controllers/users.controller";
+import { deleteTask, updateTask } from "./controllers/tasks.controller";
 
 dotenv.config();
 
@@ -18,13 +20,10 @@ app.use("/auth", authRoutes);
 
 // Protected routes
 app.use("/projects", authMiddleware, projectRoutes);
+app.use("/users", authMiddleware, listUsers);
 app.use("/projects/:id/tasks", authMiddleware, taskRoutes);
-app.patch("/tasks/:id", authMiddleware, (req, res) => {
-  import("./controllers/tasks.controller").then(m => m.updateTask(req, res));
-});
-app.delete("/tasks/:id", authMiddleware, (req, res) => {
-  import("./controllers/tasks.controller").then(m => m.deleteTask(req, res));
-});
+app.patch("/tasks/:id", authMiddleware, updateTask);
+app.delete("/tasks/:id", authMiddleware, deleteTask);
 
 // Graceful shutdown
 const server = app.listen(process.env.PORT || 8080, () => {

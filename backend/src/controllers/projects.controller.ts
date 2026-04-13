@@ -35,7 +35,17 @@ export const getProject = async (req: Request, res: Response): Promise<void> => 
     return;
   }
   const tasks = await pool.query(
-    `SELECT * FROM tasks WHERE project_id = $1 ORDER BY created_at DESC`, [id]
+    `
+    SELECT
+      t.*,
+      u.name AS assigned_user_name
+    FROM tasks t
+    LEFT JOIN users u
+      ON t.assignee_id = u.id
+    WHERE t.project_id = $1
+    ORDER BY t.created_at DESC
+    `,
+    [id]
   );
   res.json({ ...project.rows[0], tasks: tasks.rows });
 };
