@@ -18,7 +18,7 @@ export default function TaskModal({ task, users, onClose, onSave, loading }: Pro
     status: "todo" as Task["status"],
     priority: "medium" as Task["priority"],
     due_date: "",
-    assignee_id: "",
+    assignee_id: null as string | null,
   });
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export default function TaskModal({ task, users, onClose, onSave, loading }: Pro
         status: task.status,
         priority: task.priority,
         due_date: task.due_date || "",
-        assignee_id: task.assignee_id ? String(task.assignee_id) : "",
+        assignee_id: task.assignee_id ? String(task.assignee_id) : null,
       });
     }
   }, [task]);
@@ -98,8 +98,8 @@ export default function TaskModal({ task, users, onClose, onSave, loading }: Pro
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Assign To</label>
               <select
-                value={form.assignee_id}
-                onChange={(e) => setForm({ ...form, assignee_id: e.target.value })}
+                value={form.assignee_id ?? ""}
+                onChange={(e) => setForm({ ...form, assignee_id: e.target.value || null})}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="">Select User</option>

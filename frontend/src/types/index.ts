@@ -19,7 +19,7 @@ export interface Task {
   status: "todo" | "in_progress" | "done";
   priority: "low" | "medium" | "high";
   project_id: string;
-  assignee_id?: string;
+  assignee_id?: string | null;
   assigned_user_name?: string; // For convenience when displaying task with assignee info
   due_date?: string;
   created_at: Date;

@@ -36,6 +36,7 @@ export const createTask = async (req: Request, res: Response): Promise<void> => 
 export const updateTask = async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
   const { title, description, status, priority, assignee_id, due_date } = req.body;
+  const assignee = assignee_id === "" ? null : assignee_id;
 
   const task = await pool.query(`SELECT * FROM tasks WHERE id = $1`, [id]);
   if (!task.rows[0]) { res.status(404).json({ error: "not found" }); return; }
@@ -46,11 +47,11 @@ export const updateTask = async (req: Request, res: Response): Promise<void> => 
       description = COALESCE($2, description),
       status = COALESCE($3, status),
       priority = COALESCE($4, priority),
-      assignee_id = COALESCE($5, assignee_id),
+      assignee_id = $5,
       due_date = COALESCE($6, due_date),
       updated_at = NOW()
      WHERE id = $7 RETURNING *`,
-    [title, description, status, priority, assignee_id, due_date, id]
+    [title, description, status, priority, assignee, due_date, id]
   );
   res.json(result.rows[0]);
 };
