@@ -331,6 +331,19 @@ Authorization: Bearer <token>
 // Response 403 — if not the project owner
 ```
 
+#### GET `/users` 🔒
+```json
+// Request
+[
+  {
+    "email": "jane@example.com"
+    "id": "d94eeb7e-88d1-47ab-ab41-09fadec876d2"
+    "name": "Jane Doe"
+  }
+]
+```
+
+
 ---
 
 ### Error responses (all endpoints)
